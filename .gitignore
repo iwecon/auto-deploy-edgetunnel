@@ -1,0 +1,8 @@
+.build/
+.swiftpm/
+.edgetunnel-state*.json
+.edgetunnel-state*.json.tmp-*
+.edgetunnel-state*.json.lock
+*.edgetunnel-state.json
+*.edgetunnel-state.json.tmp-*
+*.edgetunnel-state.json.lock
