@@ -155,13 +155,25 @@ final class DeploymentStateLock {
     } catch {
       throw EdgeTunnelError.state("无法创建部署锁目录。")
     }
+
+    let directoryDescriptor = open(
+      directory.path,
+      O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_DIRECTORY
+    )
+    guard directoryDescriptor >= 0 else {
+      throw EdgeTunnelError.state("部署锁目录不安全；必须属于当前用户且权限不宽于 0700。")
+    }
+    defer { close(directoryDescriptor) }
+
     var metadata = stat()
-    guard lstat(directory.path, &metadata) == 0,
+    guard fstat(directoryDescriptor, &metadata) == 0,
       metadata.st_mode & mode_t(S_IFMT) == mode_t(S_IFDIR),
-      metadata.st_uid == geteuid(),
-      metadata.st_mode & mode_t(0o077) == 0
+      metadata.st_uid == geteuid()
     else {
       throw EdgeTunnelError.state("部署锁目录不安全；必须属于当前用户且权限不宽于 0700。")
+    }
+    guard fchmod(directoryDescriptor, mode_t(0o700)) == 0 else {
+      throw EdgeTunnelError.state("无法设置部署锁目录权限（errno \(errno)）。")
     }
   }
 

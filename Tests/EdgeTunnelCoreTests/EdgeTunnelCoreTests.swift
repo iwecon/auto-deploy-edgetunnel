@@ -153,6 +153,34 @@ final class StateAndWorkerTests: XCTestCase {
     )
     reacquired.release()
   }
+
+  func testDeploymentLockTightensOwnedDirectoryPermissions() throws {
+    #if os(Windows)
+      throw XCTSkip("Windows 使用 ACL，不适用 POSIX 权限断言。")
+    #else
+      let directory = temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      let lockDirectory = directory.appendingPathComponent("locks")
+      try FileManager.default.createDirectory(
+        at: lockDirectory,
+        withIntermediateDirectories: true,
+        attributes: [.posixPermissions: 0o755]
+      )
+      try FileManager.default.setAttributes(
+        [.posixPermissions: 0o755],
+        ofItemAtPath: lockDirectory.path
+      )
+
+      let lock = try DeploymentStateLock(
+        accountID: String(repeating: "f", count: 32),
+        lockDirectory: lockDirectory
+      )
+      defer { lock.release() }
+
+      let attributes = try FileManager.default.attributesOfItem(atPath: lockDirectory.path)
+      XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o700)
+    #endif
+  }
 }
 
 final class RecommendedDefaultsTests: XCTestCase {
