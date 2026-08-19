@@ -25,12 +25,49 @@
 - [Create Pages Project](https://developers.cloudflare.com/api/resources/pages/subresources/projects/methods/create/)
 - [Create Pages Deployment](https://developers.cloudflare.com/api/resources/pages/subresources/projects/subresources/deployments/methods/create/)
 
-## 运行
+## 安装
+
+### Homebrew
+
+项目提供 HEAD Formula，会从 `main` 构建当前版本：
+
+```bash
+brew install --HEAD \
+  https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/Formula/edgetunnel.rb
+```
+
+### 安装脚本
+
+脚本只通过 HTTPS 下载本仓库源码，在本机使用 Swift 构建，并默认安装到
+`$HOME/.local/bin/edgetunnel`：
+
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.sh | sh
+```
+
+可以用 `EDGETUNNEL_INSTALL_DIR` 指定安装目录，或用 `EDGETUNNEL_REF` 固定 tag / commit：
+
+```bash
+EDGETUNNEL_INSTALL_DIR=/usr/local/bin EDGETUNNEL_REF=main \
+  sh install.sh
+```
+
+建议在执行远端脚本前先下载并审查内容。安装脚本不会读取 Cloudflare 凭据；凭据只会在运行
+`edgetunnel` 部署时使用。
+
+### 源码运行
 
 macOS 13+，安装带 Swift 5.9+ 的 Xcode/Swift toolchain 后：
 
 ```bash
 swift run edgetunnel
+```
+
+使用上述安装方式后，也可以直接运行：
+
+```bash
+edgetunnel
 ```
 
 程序会先询问 Account ID，再以关闭终端回显的方式读取 API Token。

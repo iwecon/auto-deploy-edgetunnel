@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="EdgeTunnel 是一个无第三方依赖的 Swift CLI，用于在 Cloudflare Pages 与 KV 上部署并验证 EdgeTunnel。"
+    />
+    <meta name="theme-color" content="#f4f0e8" />
+    <meta property="og:title" content="EdgeTunnel — 一条命令，完成可验证部署" />
+    <meta
+      property="og:description"
+      content="验证凭据、准备 KV、上传固定版本 Worker，并在订阅真正可用后再交付结果。"
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://iwecon.github.io/auto-deploy-edgetunnel/"
+    />
+    <title>EdgeTunnel — 一条命令，完成可验证部署</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body id="top">
+    <a class="skip-link" href="#main">跳到正文</a>
+    <header class="site-header" data-header>
+      <a class="brand" href="#top" aria-label="EdgeTunnel 首页">EdgeTunnel</a>
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span>导航</span>
+        <span class="menu-mark" aria-hidden="true"></span>
+      </button>
+      <nav id="site-nav" class="site-nav" aria-label="主导航">
+        <a href="#install">安装</a>
+        <a href="#flow">工作方式</a>
+        <a href="#security">安全边界</a>
+        <a href="https://github.com/iwecon/auto-deploy-edgetunnel">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero section-shell" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <h1 id="hero-title">把 EdgeTunnel 部署，<br />收束成一条命令<span>。</span></h1>
+          <p>
+            验证凭据、准备 KV、上传固定版本 Worker，<br class="wide-only" />并在订阅真正可用后再交付结果。
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#install">开始安装</a>
+            <a class="button button-secondary" href="https://github.com/iwecon/auto-deploy-edgetunnel">
+              查看源码
+            </a>
+          </div>
+        </div>
+
+        <div class="hero-system" aria-label="部署流程示意">
+          <div class="command-block command-block-hero">
+            <span class="prompt" aria-hidden="true">$</span>
+            <code>curl -fsSL https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.sh | sh</code>
+            <button
+              class="copy-button"
+              type="button"
+              data-copy="curl -fsSL https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.sh | sh"
+              aria-label="复制安装命令"
+            >
+              复制
+            </button>
+          </div>
+          <div class="install-result"><span aria-hidden="true">✓</span> edgetunnel installed</div>
+          <div class="route route-hero" aria-hidden="true">
+            <span class="route-stop"><i></i><b>凭据验证</b></span>
+            <span class="route-stop"><i></i><b>准备 KV</b></span>
+            <span class="route-stop is-active"><i></i><b>上传 Worker</b></span>
+            <span class="route-stop is-finish"><i></i><b>验证后交付</b></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="principle section-shell" aria-labelledby="principle-title">
+        <div class="principle-copy">
+          <h2 id="principle-title">为最小依赖而生<span>。</span></h2>
+          <p>一个 Swift 可执行文件。没有运行时包袱，没有把密钥交给第三方服务。</p>
+        </div>
+        <pre class="dependency-code" aria-label="依赖检查"><code><span># 依赖</span>
+$ which swift          swift
+$ edgetunnel --help    ready</code></pre>
+      </section>
+
+      <section id="flow" class="flow section-shell" aria-labelledby="flow-title">
+        <h2 id="flow-title">从凭据，到可验证的订阅<span>。</span></h2>
+        <div class="route route-flow" aria-label="EdgeTunnel 自动部署步骤">
+          <span class="route-stop"><i></i><b>验证 Token</b></span>
+          <span class="route-stop"><i></i><b>准备 KV</b></span>
+          <span class="route-stop"><i></i><b>配置 Pages</b></span>
+          <span class="route-stop"><i></i><b>上传 Worker</b></span>
+          <span class="route-stop"><i></i><b>校验订阅</b></span>
+        </div>
+        <p class="flow-note">只有订阅内容、UUID 与 TLS WebSocket 节点都通过验证，才算完成。</p>
+      </section>
+
+      <section id="security" class="security" aria-labelledby="security-title">
+        <div class="section-shell security-inner">
+          <h2 id="security-title">安全不是一句口号，是边界<span>。</span></h2>
+          <div class="boundary-split">
+            <blockquote>
+              <h3>Token 不落盘<span>。</span></h3>
+              <p>API Token 只存在于本次进程；成功输出与状态文件都不会包含它。</p>
+            </blockquote>
+            <blockquote>
+              <h3>状态可恢复<span>。</span></h3>
+              <p>UUID、管理密码与远端资源 ID 原子写入 0600 状态文件，重跑不会随意换凭据。</p>
+            </blockquote>
+          </div>
+          <p class="integrity-line">固定 Worker commit 与 SHA-256；上传前强制校验。</p>
+        </div>
+        <div class="trust-band">
+          <div class="section-shell trust-inner">
+            <h3>你仍需知道</h3>
+            <p>
+              管理页面由上游远端动态提供；第三方节点地址也可能变化。<br class="wide-only" />工具会明确这条边界，不把它包装成绝对安全。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="install" class="install section-shell" aria-labelledby="install-title">
+        <h2 id="install-title">选择你的入口<span>。</span></h2>
+        <p>这是原生 Swift CLI。使用可审计的安装路径，不套一层多余的运行时。</p>
+
+        <div class="install-rails">
+          <article class="install-rail">
+            <h3>Homebrew</h3>
+            <div class="install-command">
+              <code>brew install --HEAD https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/Formula/edgetunnel.rb</code>
+              <button
+                class="copy-button"
+                type="button"
+                data-copy="brew install --HEAD https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/Formula/edgetunnel.rb"
+                aria-label="复制 Homebrew 安装命令"
+              >
+                复制
+              </button>
+            </div>
+          </article>
+          <article class="install-rail">
+            <h3>安装脚本</h3>
+            <div class="install-command">
+              <code>curl -fsSL https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.sh | sh</code>
+              <button
+                class="copy-button"
+                type="button"
+                data-copy="curl -fsSL https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.sh | sh"
+                aria-label="复制安装脚本命令"
+              >
+                复制
+              </button>
+            </div>
+          </article>
+          <article class="install-rail">
+            <h3>源码</h3>
+            <div class="install-command">
+              <code>git clone https://github.com/iwecon/auto-deploy-edgetunnel &amp;&amp; cd auto-deploy-edgetunnel &amp;&amp; swift run edgetunnel</code>
+              <button
+                class="copy-button"
+                type="button"
+                data-copy="git clone https://github.com/iwecon/auto-deploy-edgetunnel && cd auto-deploy-edgetunnel && swift run edgetunnel"
+                aria-label="复制源码运行命令"
+              >
+                复制
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <div class="closing">
+          <h2>把结果交给验证，而不是运气<span>。</span></h2>
+          <div class="closing-actions">
+            <a class="button button-primary" href="https://github.com/iwecon/auto-deploy-edgetunnel#readme">
+              阅读 README
+            </a>
+            <a class="button button-secondary" href="https://github.com/iwecon/auto-deploy-edgetunnel">
+              在 GitHub 查看
+            </a>
+          </div>
+          <p>macOS 13+ · Swift 5.9+</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="section-shell footer-inner">
+        <strong>EdgeTunnel</strong>
+        <p>部署有结果，边界有说明。</p>
+        <a href="#top">回到顶部 ↑</a>
+      </div>
+    </footer>
+
+    <div class="copy-status" role="status" aria-live="polite" aria-atomic="true"></div>
+  </body>
+</html>
