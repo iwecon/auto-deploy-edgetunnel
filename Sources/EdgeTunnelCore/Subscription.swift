@@ -55,7 +55,7 @@ public enum Subscription {
 
     let links =
       decodedText
-      .split(whereSeparator: \Character.isNewline)
+      .split(whereSeparator: { $0.isNewline })
       .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
       .filter { isCompatibleVLESS($0, expectedUUID: expectedUUID) }
     guard !links.isEmpty else {
