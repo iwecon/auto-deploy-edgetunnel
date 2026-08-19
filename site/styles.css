@@ -610,6 +610,10 @@ h3 span {
   margin-left: 26%;
 }
 
+.install-rail:nth-child(4) {
+  margin-left: 39%;
+}
+
 .install-rail h3 {
   margin: 0 0 8px;
   color: var(--accent);
@@ -996,7 +1000,8 @@ h3 span {
 
   .install-rail,
   .install-rail:nth-child(2),
-  .install-rail:nth-child(3) {
+  .install-rail:nth-child(3),
+  .install-rail:nth-child(4) {
     margin-left: 0;
     padding-left: 18px;
   }

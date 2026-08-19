@@ -7,7 +7,7 @@
 - Cloudflare API Token
 - Cloudflare Account ID（32 位十六进制）
 
-工具会自动生成固定 UUID 和高强度管理密码，并把恢复部署所需的状态写到权限为 `0600` 的 `.edgetunnel-state.json`。API Token 不会写入状态文件，也不会出现在成功输出中。
+工具会自动生成固定 UUID 和高强度管理密码，并把恢复部署所需的状态写到 `.edgetunnel-state.json`。macOS/Linux 会把权限收紧为 `0600`；Windows 使用当前目录继承的用户 ACL，并拒绝重解析点状态路径。API Token 不会写入状态文件，也不会出现在成功输出中。
 
 ## Cloudflare Token 权限
 
@@ -27,7 +27,7 @@
 
 ## 安装
 
-### Homebrew
+### Homebrew（macOS）
 
 项目提供 HEAD Formula，会从 `main` 构建当前版本：
 
@@ -36,7 +36,7 @@ brew install --HEAD \
   https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/Formula/edgetunnel.rb
 ```
 
-### 安装脚本
+### macOS / Linux 安装脚本
 
 脚本只通过 HTTPS 下载本仓库源码，在本机使用 Swift 构建，并默认安装到
 `$HOME/.local/bin/edgetunnel`：
@@ -56,9 +56,31 @@ EDGETUNNEL_INSTALL_DIR=/usr/local/bin EDGETUNNEL_REF=main \
 建议在执行远端脚本前先下载并审查内容。安装脚本不会读取 Cloudflare 凭据；凭据只会在运行
 `edgetunnel` 部署时使用。
 
+Linux 需要 `curl`、`tar`、`install` 和 Swift 5.9+。请先按
+[Swift 官方 Linux 安装说明](https://www.swift.org/install/linux/)安装工具链。
+
+### Windows PowerShell 安装脚本
+
+Windows 先按 [Swift 官方 Windows 安装说明](https://www.swift.org/install/windows/)安装 Swift 5.9+
+及其 Visual Studio/Windows SDK 依赖，然后在 PowerShell 中下载、审查并运行脚本：
+
+```powershell
+Invoke-WebRequest `
+  https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.ps1 `
+  -OutFile install.ps1
+Get-Content .\install.ps1
+.\install.ps1
+```
+
+默认安装到 `%LOCALAPPDATA%\Programs\EdgeTunnel\edgetunnel.exe`。可以通过参数或环境变量覆盖：
+
+```powershell
+.\install.ps1 -Ref main -InstallDir C:\Tools\EdgeTunnel
+```
+
 ### 源码运行
 
-macOS 13+，安装带 Swift 5.9+ 的 Xcode/Swift toolchain 后：
+支持 macOS 13+、Linux 和 Windows。安装 Swift 5.9+ 后：
 
 ```bash
 swift run edgetunnel
@@ -69,6 +91,18 @@ swift run edgetunnel
 ```bash
 edgetunnel
 ```
+
+### CI 二进制下载
+
+每次 CI 成功后，可在对应 GitHub Actions 运行页面的 **Artifacts** 区域直接下载：
+
+- `edgetunnel-macos-arm64`
+- `edgetunnel-linux-x86_64`
+- `edgetunnel-windows-x86_64`
+
+每个产物都包含命名后的 release 二进制与 `.sha256` 校验文件。Linux 产物静态链接 Swift
+标准库；Windows 产物同时带运行所需的 Swift DLL。CI 产物保留 30 天，不等同于已签名、已公证的
+正式 Release；macOS 下载后仍可能受到 Gatekeeper 策略限制。
 
 程序会先询问 Account ID，再以关闭终端回显的方式读取 API Token。
 
@@ -90,6 +124,14 @@ printenv CLOUDFLARE_API_TOKEN | swift run edgetunnel \
 ```
 
 不提供 `--api-token <value>`，避免 Token 出现在 shell history 或进程参数中。
+
+PowerShell 中可以这样设置环境变量：
+
+```powershell
+$env:CLOUDFLARE_ACCOUNT_ID = "你的 Account ID"
+$env:CLOUDFLARE_API_TOKEN = "你的 API Token"
+edgetunnel
+```
 
 ## 成功输出
 
@@ -149,11 +191,11 @@ edgetunnel [deploy] [选项]
 7. 首次验证订阅地址，要求返回标准 Base64、至少包含一个 VLESS + TLS + WebSocket URL，并且节点 UUID 与本地状态完全一致。
 8. 合并 `config.json` 并将推荐节点地址写入 KV 的 `ADD.txt`，最后写 `in.iiiam-defaults.json` 标记。
 9. 再次验证订阅，确认默认值写入后仍可生成匹配 UUID 的有效节点。
-10. 原子写入完整状态并保持 `0600` 权限。
+10. 原子写入完整状态，并应用对应平台的状态文件保护。
 
 状态文件与当前 Account、项目名或 KV 标题不一致时会停止，而不是覆盖。状态还会保存 Pages project ID 和 KV namespace ID；远端资源缺失、同名替换或本地状态缺少对应 ID 时默认停止。只有状态已在远端创建前记录了对应 creation intent，才会自动按名称恢复 POST 成功但 ID 尚未来得及落盘的资源。其他替代资源必须显式使用 `--adopt-existing` 才能接管；该选项会替换 Pages 生产配置和代码。发现多个同名 KV 时仍会停止。若 Cloudflare 已创建部分资源而后续失败，工具会保留资源和本地状态供重跑，不会自动删除可能仍有价值的数据。
 
-工具按 Cloudflare Account ID 在带当前 UID、权限为 `0700` 的运行时临时目录持有跨进程独占锁。即使进程使用不同状态文件、Pages 项目或共享 KV 标题，也不能同时修改同一账户；不要求写入用户 home/Application Support。加载已有状态时会拒绝符号链接、非当前用户所有、带额外硬链接或允许 group/other 访问的文件。
+工具按 Cloudflare Account ID 在运行时临时目录持有跨进程独占锁。即使进程使用不同状态文件、Pages 项目或共享 KV 标题，也不能同时修改同一账户；不要求写入用户 home/Application Support。macOS/Linux 的锁目录权限为 `0700`，加载状态时会拒绝符号链接、非当前用户所有、额外硬链接或 group/other 可访问的文件。Windows 使用无共享句柄实现账户锁，状态文件与锁目录继承当前用户临时目录/目标目录的 ACL，并拒绝符号链接等重解析点；若目标目录 ACL 对其他用户开放，请先收紧目录 ACL。
 
 当状态记录的 deployment ID 与 Cloudflare canonical deployment 一致、固定上游版本一致，并且订阅仍能验证时，重跑会直接复用。否则使用原 UUID/管理密码修复部署，避免已有客户端凭据变化。
 
@@ -187,6 +229,8 @@ edgetunnel [deploy] [选项]
 swift build
 swift test
 ```
+
+CI 会在 macOS、Ubuntu Linux 和 Windows 上分别执行 release 构建与测试，并解析校验对应安装脚本。
 
 单元测试不访问真实网络，覆盖首次部署、幂等复用、推荐配置合并、KV value 读写与 marker-last、同名资源收养保护、失败 deployment 不得伪装成功、multipart 内容、Cloudflare 错误脱敏、状态权限与锁、固定源码校验、MD5/SHA-256 与 UUID 一致的订阅解析。没有 Cloudflare 凭据时，构建和测试不能证明真实账户权限、Pages/KV propagation、第三方节点地址可用性、WebSocket 数据面或代理可用性；这些必须由一次真实部署和客户端连接另行验证。
 

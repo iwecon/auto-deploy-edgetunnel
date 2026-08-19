@@ -1,4 +1,3 @@
-import CoreFoundation
 import Foundation
 
 struct RecommendedDefaultsMerge {
@@ -143,22 +142,19 @@ enum RecommendedDefaults {
   }
 
   static func strictBoolean(_ value: Any?) -> Bool? {
-    guard let number = value as? NSNumber,
-      CFGetTypeID(number) == CFBooleanGetTypeID()
-    else {
+    guard let number = value as? NSNumber else {
       return nil
     }
+    guard String(cString: number.objCType) == "c" else { return nil }
     return number.boolValue
   }
 
   static func strictInteger(_ value: Any?) -> Int? {
-    guard let number = value as? NSNumber,
-      CFGetTypeID(number) == CFNumberGetTypeID()
-    else {
+    guard let number = value as? NSNumber else {
       return nil
     }
     let type = String(cString: number.objCType)
-    guard ["c", "s", "i", "l", "q", "C", "S", "I", "L", "Q"].contains(type) else {
+    guard ["s", "i", "l", "q", "C", "S", "I", "L", "Q"].contains(type) else {
       return nil
     }
     return Int(number.stringValue)

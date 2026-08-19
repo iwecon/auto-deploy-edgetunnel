@@ -109,7 +109,7 @@ $ edgetunnel --help    ready</code></pre>
             </blockquote>
             <blockquote>
               <h3>状态可恢复<span>。</span></h3>
-              <p>UUID、管理密码与远端资源 ID 原子写入 0600 状态文件，重跑不会随意换凭据。</p>
+              <p>UUID、管理密码与远端资源 ID 原子写入受保护的状态文件，重跑不会随意换凭据。</p>
             </blockquote>
           </div>
           <p class="integrity-line">固定 Worker commit 与 SHA-256；上传前强制校验。</p>
@@ -144,7 +144,7 @@ $ edgetunnel --help    ready</code></pre>
             </div>
           </article>
           <article class="install-rail">
-            <h3>安装脚本</h3>
+            <h3>macOS / Linux</h3>
             <div class="install-command">
               <code>curl -fsSL https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.sh | sh</code>
               <button
@@ -152,6 +152,20 @@ $ edgetunnel --help    ready</code></pre>
                 type="button"
                 data-copy="curl -fsSL https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.sh | sh"
                 aria-label="复制安装脚本命令"
+              >
+                复制
+              </button>
+            </div>
+          </article>
+          <article class="install-rail">
+            <h3>Windows PowerShell</h3>
+            <div class="install-command">
+              <code>irm https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.ps1 -OutFile install.ps1; .\install.ps1</code>
+              <button
+                class="copy-button"
+                type="button"
+                data-copy="irm https://raw.githubusercontent.com/iwecon/auto-deploy-edgetunnel/main/install.ps1 -OutFile install.ps1; .\install.ps1"
+                aria-label="复制 Windows 安装命令"
               >
                 复制
               </button>
@@ -183,7 +197,7 @@ $ edgetunnel --help    ready</code></pre>
               在 GitHub 查看
             </a>
           </div>
-          <p>macOS 13+ · Swift 5.9+</p>
+          <p>macOS 13+ · Linux · Windows · Swift 5.9+</p>
         </div>
       </section>
     </main>

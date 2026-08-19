@@ -30,6 +30,7 @@ const requiredText = [
   "安全不是一句口号，是边界",
   "brew install --HEAD",
   "install.sh | sh",
+  "install.ps1 -OutFile install.ps1",
 ];
 const missingText = requiredText.filter((text) => !html.includes(text));
 
