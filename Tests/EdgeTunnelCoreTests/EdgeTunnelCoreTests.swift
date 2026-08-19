@@ -58,7 +58,7 @@ final class HashingAndValidationTests: XCTestCase {
 }
 
 final class StateAndWorkerTests: XCTestCase {
-  func testStateIs0600AndContainsNoToken() throws {
+  func testStateUsesPlatformProtectionAndContainsNoToken() throws {
     let directory = temporaryDirectory()
     defer { try? FileManager.default.removeItem(at: directory) }
     let file = directory.appendingPathComponent("state.json")
@@ -68,8 +68,10 @@ final class StateAndWorkerTests: XCTestCase {
       kvNamespaceTitle: "in.iiiam-edgetunnel"
     )
     try DeploymentStateStore(fileURL: file).save(state)
-    let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
-    XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+    #if !os(Windows)
+      let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+      XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+    #endif
     let contents = try String(contentsOf: file, encoding: .utf8)
     XCTAssertFalse(contents.contains("super-secret-token"))
     XCTAssertTrue(contents.contains(state.adminPassword))
@@ -98,23 +100,28 @@ final class StateAndWorkerTests: XCTestCase {
   }
 
   func testStateRejectsWidePermissionsAndSymlink() throws {
-    let directory = temporaryDirectory()
-    defer { try? FileManager.default.removeItem(at: directory) }
-    let stateFile = directory.appendingPathComponent("state.json")
-    let state = DeploymentState(
-      accountID: String(repeating: "a", count: 32),
-      projectName: "llet-\(String(repeating: "a", count: 32))",
-      kvNamespaceTitle: "in.iiiam-edgetunnel"
-    )
-    try DeploymentStateStore(fileURL: stateFile).save(state)
-    try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: stateFile.path)
-    XCTAssertThrowsError(try DeploymentStateStore(fileURL: stateFile).load())
+    #if os(Windows)
+      throw XCTSkip("Windows 使用继承 ACL，无法执行 POSIX 权限断言；创建符号链接还依赖开发者模式。")
+    #else
+      let directory = temporaryDirectory()
+      defer { try? FileManager.default.removeItem(at: directory) }
+      let stateFile = directory.appendingPathComponent("state.json")
+      let state = DeploymentState(
+        accountID: String(repeating: "a", count: 32),
+        projectName: "llet-\(String(repeating: "a", count: 32))",
+        kvNamespaceTitle: "in.iiiam-edgetunnel"
+      )
+      try DeploymentStateStore(fileURL: stateFile).save(state)
+      try FileManager.default.setAttributes(
+        [.posixPermissions: 0o644], ofItemAtPath: stateFile.path)
+      XCTAssertThrowsError(try DeploymentStateStore(fileURL: stateFile).load())
 
-    try FileManager.default.removeItem(at: stateFile)
-    let target = directory.appendingPathComponent("target.json")
-    try DeploymentStateStore(fileURL: target).save(state)
-    try FileManager.default.createSymbolicLink(at: stateFile, withDestinationURL: target)
-    XCTAssertThrowsError(try DeploymentStateStore(fileURL: stateFile).load())
+      try FileManager.default.removeItem(at: stateFile)
+      let target = directory.appendingPathComponent("target.json")
+      try DeploymentStateStore(fileURL: target).save(state)
+      try FileManager.default.createSymbolicLink(at: stateFile, withDestinationURL: target)
+      XCTAssertThrowsError(try DeploymentStateStore(fileURL: stateFile).load())
+    #endif
   }
 
   func testDeploymentLockIsExclusiveForAccountAcrossProjects() throws {

@@ -2,6 +2,12 @@
 
 import PackageDescription
 
+#if os(Windows)
+  let edgeTunnelCoreExcludes = ["StateStore.swift"]
+#else
+  let edgeTunnelCoreExcludes = ["StateStoreWindows.swift"]
+#endif
+
 let package = Package(
   name: "auto-deploy-edgetunnel",
   platforms: [
@@ -12,7 +18,7 @@ let package = Package(
     .executable(name: "edgetunnel", targets: ["edgetunnel"]),
   ],
   targets: [
-    .target(name: "EdgeTunnelCore"),
+    .target(name: "EdgeTunnelCore", exclude: edgeTunnelCoreExcludes),
     .executableTarget(
       name: "edgetunnel",
       dependencies: ["EdgeTunnelCore"]

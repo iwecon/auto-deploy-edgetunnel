@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -15,13 +14,37 @@ concurrency:
 
 jobs:
   swift:
-    name: Build and test
-    runs-on: macos-14
-    timeout-minutes: 20
+    name: Build and test (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-14
+            artifact: macos-arm64
+            binary: edgetunnel-macos-arm64
+          - name: Linux
+            os: ubuntu-24.04
+            artifact: linux-x86_64
+            binary: edgetunnel-linux-x86_64
+          - name: Windows
+            os: windows-2025
+            artifact: windows-x86_64
+            binary: edgetunnel-windows-x86_64.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Install Swift on Windows
+        if: runner.os == 'Windows'
+        uses: compnerd/gha-setup-swift@eeda069c5bc95ac8a9ac5cea7d4f588ae5420ca5
+        with:
+          swift-version: swift-6.3-release
+          swift-build: 6.3.3-RELEASE
+          cache: true
 
       - name: Toolchain
         run: swift --version
@@ -32,7 +55,69 @@ jobs:
       - name: Run tests
         run: swift test --parallel
 
-      - name: Check installers
+      - name: Build self-contained Swift runtime on Linux
+        if: runner.os == 'Linux'
+        run: swift build --configuration release --static-swift-stdlib
+
+      - name: Check Unix installer and Homebrew formula
+        if: runner.os == 'macOS'
         run: |
           sh -n install.sh
           ruby -c Formula/edgetunnel.rb
+
+      - name: Check Linux installer
+        if: runner.os == 'Linux'
+        run: sh -n install.sh
+
+      - name: Check Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $source = Get-Content -Raw install.ps1
+          $null = [scriptblock]::Create($source)
+
+      - name: Prepare macOS binary
+        if: runner.os == 'macOS'
+        env:
+          BINARY_NAME: ${{ matrix.binary }}
+        run: |
+          mkdir -p artifacts
+          cp .build/release/edgetunnel "artifacts/$BINARY_NAME"
+          chmod 0755 "artifacts/$BINARY_NAME"
+          cd artifacts
+          shasum -a 256 "$BINARY_NAME" > "$BINARY_NAME.sha256"
+
+      - name: Prepare Linux binary
+        if: runner.os == 'Linux'
+        env:
+          BINARY_NAME: ${{ matrix.binary }}
+        run: |
+          mkdir -p artifacts
+          cp .build/release/edgetunnel "artifacts/$BINARY_NAME"
+          chmod 0755 "artifacts/$BINARY_NAME"
+          cd artifacts
+          sha256sum "$BINARY_NAME" > "$BINARY_NAME.sha256"
+
+      - name: Prepare Windows binary and Swift runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          BINARY_NAME: ${{ matrix.binary }}
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          Copy-Item .build\release\edgetunnel.exe "artifacts\$env:BINARY_NAME"
+          $targetInfo = swiftc -print-target-info | ConvertFrom-Json
+          foreach ($runtimePath in $targetInfo.paths.runtimeLibraryPaths) {
+            Get-ChildItem -Path $runtimePath -Filter *.dll -ErrorAction SilentlyContinue |
+              Copy-Item -Destination artifacts -Force
+          }
+          $hash = (Get-FileHash "artifacts\$env:BINARY_NAME" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $env:BINARY_NAME" | Set-Content "artifacts\$env:BINARY_NAME.sha256" -Encoding ascii
+
+      - name: Upload downloadable binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: edgetunnel-${{ matrix.artifact }}
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 30

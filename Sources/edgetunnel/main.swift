@@ -5,6 +5,8 @@ import Foundation
   import Darwin
 #elseif canImport(Glibc)
   import Glibc
+#elseif os(Windows)
+  import WinSDK
 #endif
 
 @main
@@ -56,10 +58,10 @@ struct EdgeTunnelCommand {
       }
     } catch let error as EdgeTunnelError {
       writeError("部署失败：\(error.localizedDescription)\n")
-      exit(1)
+      terminate(1)
     } catch {
       writeError("部署失败：发生未预期错误；未输出底层内容以避免泄露凭据。\n")
-      exit(1)
+      terminate(1)
     }
   }
 
@@ -73,7 +75,7 @@ struct EdgeTunnelCommand {
     if let value = environment["CLOUDFLARE_ACCOUNT_ID"]?.trimmedNonempty {
       return value
     }
-    guard isatty(STDIN_FILENO) == 1 else {
+    guard isInteractiveInput else {
       throw EdgeTunnelError.usage(
         "非交互模式必须通过 --account-id 或 CLOUDFLARE_ACCOUNT_ID 提供 Account ID。"
       )
@@ -102,25 +104,43 @@ struct EdgeTunnelCommand {
   }
 
   private static func readHiddenLine(prompt: String) throws -> String {
-    guard isatty(STDIN_FILENO) == 1 else {
+    guard isInteractiveInput else {
       throw EdgeTunnelError.usage(
         "非交互模式必须设置 CLOUDFLARE_API_TOKEN 或使用 --api-token-stdin。"
       )
     }
-    var original = termios()
-    guard tcgetattr(STDIN_FILENO, &original) == 0 else {
-      throw EdgeTunnelError.usage("无法读取终端属性，Token 输入已取消。")
-    }
-    var hidden = original
-    hidden.c_lflag &= ~tcflag_t(ECHO)
-    writeError(prompt)
-    guard tcsetattr(STDIN_FILENO, TCSAFLUSH, &hidden) == 0 else {
-      throw EdgeTunnelError.usage("无法关闭终端回显，Token 输入已取消。")
-    }
-    defer {
-      _ = tcsetattr(STDIN_FILENO, TCSAFLUSH, &original)
-      writeError("\n")
-    }
+    #if os(Windows)
+      guard let inputHandle = GetStdHandle(STD_INPUT_HANDLE) else {
+        throw EdgeTunnelError.usage("无法读取控制台属性，Token 输入已取消。")
+      }
+      var original: DWORD = 0
+      guard GetConsoleMode(inputHandle, &original) else {
+        throw EdgeTunnelError.usage("无法读取控制台属性，Token 输入已取消。")
+      }
+      writeError(prompt)
+      guard SetConsoleMode(inputHandle, original & ~DWORD(ENABLE_ECHO_INPUT)) else {
+        throw EdgeTunnelError.usage("无法关闭控制台回显，Token 输入已取消。")
+      }
+      defer {
+        _ = SetConsoleMode(inputHandle, original)
+        writeError("\n")
+      }
+    #else
+      var original = termios()
+      guard tcgetattr(STDIN_FILENO, &original) == 0 else {
+        throw EdgeTunnelError.usage("无法读取终端属性，Token 输入已取消。")
+      }
+      var hidden = original
+      hidden.c_lflag &= ~tcflag_t(ECHO)
+      writeError(prompt)
+      guard tcsetattr(STDIN_FILENO, TCSAFLUSH, &hidden) == 0 else {
+        throw EdgeTunnelError.usage("无法关闭终端回显，Token 输入已取消。")
+      }
+      defer {
+        _ = tcsetattr(STDIN_FILENO, TCSAFLUSH, &original)
+        writeError("\n")
+      }
+    #endif
     guard let value = readLine()?.trimmedNonempty else {
       throw EdgeTunnelError.usage("Cloudflare API Token 不能为空。")
     }
@@ -128,10 +148,7 @@ struct EdgeTunnelCommand {
   }
 
   private static func resolveFile(_ path: String, relativeTo directory: URL) -> URL {
-    if path.hasPrefix("/") {
-      return URL(fileURLWithPath: path).standardizedFileURL
-    }
-    return directory.appendingPathComponent(path).standardizedFileURL
+    URL(fileURLWithPath: path, relativeTo: directory).standardizedFileURL
   }
 
   private static func printHumanResult(_ result: DeploymentResult) {
@@ -154,7 +171,7 @@ struct EdgeTunnelCommand {
       Deployment ID:    \(result.deploymentID)
       推荐节点地址:     已初始化或确认
       上游提交:         \(result.upstreamCommit)
-      状态文件 [0600]:  \(result.stateFile)
+      \(stateFileLabel):  \(result.stateFile)
 
       请妥善保管订阅地址、UUID、管理密码和状态文件。API Token 未保存。
       """)
@@ -162,6 +179,33 @@ struct EdgeTunnelCommand {
 
   private static func writeError(_ text: String) {
     FileHandle.standardError.write(Data(text.utf8))
+  }
+
+  private static var isInteractiveInput: Bool {
+    #if os(Windows)
+      guard let inputHandle = GetStdHandle(STD_INPUT_HANDLE) else { return false }
+      var mode: DWORD = 0
+      return GetConsoleMode(inputHandle, &mode)
+    #else
+      return isatty(STDIN_FILENO) == 1
+    #endif
+  }
+
+  private static var stateFileLabel: String {
+    #if os(Windows)
+      return "状态文件 [用户 ACL]"
+    #else
+      return "状态文件 [0600]"
+    #endif
+  }
+
+  private static func terminate(_ code: UInt32) -> Never {
+    #if os(Windows)
+      ExitProcess(code)
+      fatalError("ExitProcess returned unexpectedly")
+    #else
+      exit(Int32(code))
+    #endif
   }
 }
 

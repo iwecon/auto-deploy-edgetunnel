@@ -13,10 +13,14 @@ case "$install_ref" in
     ;;
 esac
 
-if [ "$(uname -s)" != "Darwin" ]; then
-  printf '%s\n' "EdgeTunnel 当前仅支持 macOS 13 或更高版本。" >&2
-  exit 1
-fi
+operating_system="$(uname -s)"
+case "$operating_system" in
+  Darwin | Linux) ;;
+  *)
+    printf '%s\n' "此安装脚本仅支持 macOS 和 Linux；Windows 请使用 install.ps1。" >&2
+    exit 1
+    ;;
+esac
 
 for command_name in curl tar swift install mktemp; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
@@ -25,10 +29,12 @@ for command_name in curl tar swift install mktemp; do
   fi
 done
 
-macos_major="$(sw_vers -productVersion | cut -d. -f1)"
-if [ "$macos_major" -lt 13 ]; then
-  printf '%s\n' "EdgeTunnel 需要 macOS 13 或更高版本。" >&2
-  exit 1
+if [ "$operating_system" = "Darwin" ]; then
+  macos_major="$(sw_vers -productVersion | cut -d. -f1)"
+  if [ "$macos_major" -lt 13 ]; then
+    printf '%s\n' "EdgeTunnel 需要 macOS 13 或更高版本。" >&2
+    exit 1
+  fi
 fi
 
 temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/edgetunnel-install.XXXXXX")"
